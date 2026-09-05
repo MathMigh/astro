@@ -6,10 +6,12 @@ from difflib import SequenceMatcher
 from urllib.parse import quote
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 
 app = Flask(__name__)
-UA = "Shelfwright-Plus-Vercel/0.3"
+UA = "Shelfwright-Plus-Vercel/0.4"
+
+INDEX_HTML = r'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shelfwright Plus Web</title><style>body{font-family:system-ui;max-width:1050px;margin:40px auto;padding:0 18px;background:#f6f6f3;color:#202124}.card{background:white;border:1px solid #ddd;border-radius:14px;padding:18px;margin:14px 0}input,button{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid #bbb}button{cursor:pointer;background:#202124;color:white}.row{display:flex;gap:8px;flex-wrap:wrap}.grow{flex:1}.muted{color:#777}.work{padding:9px 0;border-bottom:1px solid #eee}.hit{margin:5px 0 0 24px;font-size:13px}.hidden{display:none}a{color:#2459d6}</style></head><body><h1>Shelfwright Plus Web</h1><p class="muted">Catálogo público no Vercel: Open Library + Internet Archive. Downloads do Anna/Z-Library continuam no agente local.</p><div class="card"><div class="row"><input id="q" class="grow" placeholder="René Guénon"><button onclick="find()">Autor</button></div><div id="authors"></div></div><div id="worksCard" class="card hidden"><h2 id="name"></h2><div id="works"></div></div><script>const $=x=>document.getElementById(x);async function j(u){let r=await fetch(u),d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);return d}function e(s){return String(s||'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}async function find(){let d=await j('/api/author?q='+encodeURIComponent($('q').value));$('authors').innerHTML=d.authors.map((a,i)=>`<div class=work><button onclick='load(${i})'>Usar</button> <b>${e(a.name)}</b> <span class=muted>${a.work_count} obras</span></div>`).join('');window.A=d.authors}async function load(i){let a=window.A[i],d=await j('/api/works?key='+encodeURIComponent(a.key));$('name').textContent=a.name;$('worksCard').classList.remove('hidden');$('works').innerHTML=d.works.map((w,i)=>`<div class=work><b>${e(w.title)}</b> <button onclick='ia(${JSON.stringify(w.title)},${JSON.stringify(a.name)},this)'>Archive</button><div class=hits></div></div>`).join('')}async function ia(t,a,b){b.disabled=true;let box=b.parentElement.querySelector('.hits');try{let d=await j('/api/archive?title='+encodeURIComponent(t)+'&author='+encodeURIComponent(a));box.innerHTML=d.results.slice(0,4).map(x=>`<div class=hit><a target=_blank href='${x.url}'>${e(x.title)}</a> ${x.restricted?'restrito':'público'} <button onclick='files(${JSON.stringify(x.identifier)},this)'>arquivos</button></div>`).join('')||'<span class=muted>sem resultado</span>'}finally{b.disabled=false}}async function files(id,b){let d=await j('/api/archive/files?id='+encodeURIComponent(id));if(!d.files.length)return alert('Sem arquivo público direto.');window.open(d.files[0].url,'_blank')}</script></body></html>'''
 
 
 def get(url, **kwargs):
@@ -28,9 +30,14 @@ def sim(a: str, b: str) -> float:
     return SequenceMatcher(None, norm(a), norm(b)).ratio()
 
 
+@app.get("/")
+def home():
+    return Response(INDEX_HTML, mimetype="text/html")
+
+
 @app.get("/api/health")
 def health():
-    return jsonify({"ok": True, "mode": "vercel-public-catalog"})
+    return jsonify({"ok": True, "mode": "vercel-public-catalog", "version": "0.4"})
 
 
 @app.get("/api/author")
